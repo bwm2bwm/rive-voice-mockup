@@ -1,60 +1,119 @@
 import './style.css'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { setupCounter } from './counter.js'
+import { Rive } from '@rive-app/canvas'
 
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+let riveInputs = []
+let bumpTrigger = null
+let isAgentResponding = false
 
-<div class="ticks"></div>
+const inputName = (input) => String(input?.name ?? '').trim()
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+const findInput = (targetName) =>
+  riveInputs.find((input) => inputName(input) === targetName) ?? null
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+const logMissingBumpTrigger = () => {
+  console.warn(
+    '[Rive] "bump" というトリガーが見つかりません。実際のインプット一覧:',
+    riveInputs.map((input) => ({
+      rawName: input?.name,
+      trimmedName: inputName(input),
+      type: input?.type,
+      hasFire: typeof input?.fire === 'function',
+    })),
+  )
+}
 
-setupCounter(document.querySelector('#counter'))
+const fireJump = () => {
+  bumpTrigger = findInput('bump')
+
+  if (typeof bumpTrigger?.fire === 'function') {
+    console.log('[Rive] jump/bump トリガー発火成功')
+    bumpTrigger.fire()
+  } else {
+    logMissingBumpTrigger()
+  }
+}
+
+window.fireJumpFromAI = function () {
+  if (isAgentResponding) {
+    console.log('[AI Agent] エージェントが発話中のため、リクエストをガードしました。')
+    return
+  }
+
+  console.log('[AI Agent] AIの発話演出と連動してジャンプします。')
+  isAgentResponding = true
+
+  fireJump()
+  speakAgentDialogue()
+
+  setTimeout(() => {
+    isAgentResponding = false
+    console.log('[AI Agent] エージェントの発話演出が終了しました。')
+  }, 2000)
+}
+
+// 既存の呼び出し口との互換用。引数は受け取るが、現在のRiveはbumpのみを発火する。
+window.fireVehicleTriggerFromAI = function () {
+  window.fireJumpFromAI()
+}
+
+function speakAgentDialogue() {
+  console.log(
+    '%cエージェントの声: 「ジャンプするよ！」',
+    'color: #007bff; font-weight: bold; font-size: 14px;',
+  )
+}
+
+const initializeStateMachine = () => {
+  const stateMachineNames = r.stateMachineNames ?? []
+  console.log('利用可能なステートマシン一覧:', stateMachineNames)
+
+  const activeStateMachineName =
+    stateMachineNames.find((name) => inputName({ name }) === 'bumpy') ?? stateMachineNames[0]
+
+  if (!activeStateMachineName) {
+    console.warn('[Rive] このRiveファイルにはステートマシンが見つかりません。')
+    riveInputs = []
+    return
+  }
+
+  console.log(`[Rive] 使用中のステートマシン: ${activeStateMachineName}`)
+
+  riveInputs = r.stateMachineInputs(activeStateMachineName) ?? []
+  console.log(`取得された "${activeStateMachineName}" の生インプット群:`, riveInputs)
+  console.log(
+    '整形後のインプット一覧:',
+    riveInputs.map((input) => `${input?.name} -> "${inputName(input)}" (${input?.type})`),
+  )
+
+  bumpTrigger = findInput('bump')
+
+  if (bumpTrigger) {
+    console.log('ジャンプ用トリガーを取得しました:', bumpTrigger)
+  } else {
+    logMissingBumpTrigger()
+  }
+}
+
+const r = new Rive({
+  src: '/vehicles.riv',
+  canvas: document.getElementById('canvas'),
+  autoplay: true,
+  stateMachines: 'bumpy',
+  onLoad: () => {
+    r.resizeDrawingSurfaceToCanvas()
+    console.log('--- Rive Loaded Successfully (Local) ---')
+
+    try {
+      initializeStateMachine()
+    } catch (error) {
+      console.error('Rive読み込み後の解析中にエラーが発生しました:', error)
+    }
+  },
+  onLoadError: (error) => {
+    console.error('Riveファイルの読み込みに失敗しました:', error)
+  },
+})
+
+document.getElementById('btn-jump')?.addEventListener('click', () => {
+  window.fireJumpFromAI()
+})
