@@ -1,0 +1,17 @@
+{
+  "name": "rive-voice-mockup",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.0.12"
+  },
+  "dependencies": {
+    "@rive-app/canvas": "^2.38.0"
+  }
+}
