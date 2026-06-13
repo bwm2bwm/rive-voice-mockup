@@ -1,5 +1,57 @@
 # 開発ログ
 
+## 2026-06-13
+
+### 実施内容
+
+- 新しいRiveファイル `wave-hear-and-talk.riv` を `public/rive/` 配下で扱う方針に変更した。
+- 旧サンプルの `vehicles.riv` / `bumpy` / `bump` 前提の実装から、音声対話エージェント向けの `State Machine 1` 前提の実装へ切り替えた。
+- `src/main.js` をState Machine Input汎用操作型に変更した。
+  - `Talk` / `Hear` / `Check` のBoolean Inputを操作可能にした。
+  - `Look` のNumber Inputを操作可能にした。
+  - `success` / `fail` のTriggerを発火可能にした。
+  - Input名比較では引き続き `.trim()` を使い、意図しない空白に備える方針を維持した。
+- `index.html` と `src/style.css` を、State Machine確認用UIへ変更した。
+  - Agent Stateプリセットを追加した。
+  - Boolean Inputトグルを追加した。
+  - `Look` 用のスライダーと値ボタンを追加した。
+  - Trigger発火ボタンを追加した。
+  - 読み込み済みInput一覧を画面上に表示するテーブルを追加した。
+- 将来のAI応答連携に備えて、以下のグローバルAPIを追加した。
+  - `window.setAgentState(stateName)`
+  - `window.handleAgentEvent(event)`
+  - `window.riveDebug`
+- 旧APIの `window.fireJumpFromAI()` と `window.fireVehicleTriggerFromAI()` は互換用として残し、現在はSuccess Flowのモック応答を実行する形にした。
+- `docs/project_state.md` を、新しいRive構造と現在の開発ステータスに合わせて更新した。
+
+### 調査で分かったこと
+
+- `wave-hear-and-talk.riv` の確認済み構造は以下の通り。
+
+```text
+Artboard: Artboard
+State Machine: State Machine 1
+
+Inputs:
+  Talk     Boolean
+  Hear     Boolean
+  Check    Boolean
+  Look     Number
+  success  Trigger
+  fail     Trigger
+```
+
+- Animationは `idle` と `Talk` がloopで、それ以外はone-shotとして確認した。
+- Animation名の `hands_up ` と `fail ` には末尾スペースが含まれていた。
+- State Machine Input側の `fail` には末尾スペースはなかった。
+- `Look` のNumber値の意味と最適な値域はRuntime解析だけでは判断できないため、実際の見た目で追加確認が必要。
+
+### 現在の動作確認
+
+- `npm run build` は成功。
+- `public/rive/wave-hear-and-talk.riv` がVite経由で配信されることを確認した。
+- ブラウザ上でState Machine確認UIが問題なく動作することを確認済み。
+
 ## 2026-06-12
 
 ### 実施内容
