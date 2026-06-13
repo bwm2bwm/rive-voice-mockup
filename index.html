@@ -1,19 +1,103 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>rive-voice-mockup</title>
+    <title>Rive Voice Agent Mockup</title>
   </head>
   <body>
     <main id="app">
-      <div class="rive-stage">
+      <section class="stage-panel" aria-label="Riveプレビュー">
         <canvas id="canvas" width="500" height="500"></canvas>
-        <div class="controls" aria-label="アニメーション操作">
-          <button id="btn-jump" type="button">ジャンプ</button>
+        <p id="status" class="status" aria-live="polite">Loading Rive...</p>
+      </section>
+
+      <section class="control-panel" aria-label="State Machine操作">
+        <header class="panel-header">
+          <div>
+            <p class="eyebrow">State Machine</p>
+            <h1 id="state-machine-name">-</h1>
+          </div>
+          <button id="reset" class="secondary-button" type="button">Reset</button>
+        </header>
+
+        <div class="control-section">
+          <h2>Agent States</h2>
+          <div class="button-grid">
+            <button type="button" data-state="idle">Idle</button>
+            <button type="button" data-state="listening">Listening</button>
+            <button type="button" data-state="thinking">Thinking</button>
+            <button type="button" data-state="talking">Talking</button>
+            <button type="button" data-state="success">Success</button>
+            <button type="button" data-state="fail">Fail</button>
+          </div>
         </div>
-      </div>
+
+        <div class="control-section">
+          <h2>Boolean Inputs</h2>
+          <div class="toggle-list">
+            <label class="toggle-row">
+              <span>Talk</span>
+              <input type="checkbox" data-boolean="Talk" />
+            </label>
+            <label class="toggle-row">
+              <span>Hear</span>
+              <input type="checkbox" data-boolean="Hear" />
+            </label>
+            <label class="toggle-row">
+              <span>Check</span>
+              <input type="checkbox" data-boolean="Check" />
+            </label>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h2>Look Number</h2>
+          <div class="range-control">
+            <input id="look-slider" type="range" min="0" max="2" step="1" value="0" />
+            <output id="look-value" for="look-slider">0</output>
+          </div>
+          <div class="button-grid compact">
+            <button type="button" data-look="0">Look 0</button>
+            <button type="button" data-look="1">Look 1</button>
+            <button type="button" data-look="2">Look 2</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h2>Triggers</h2>
+          <div class="button-grid compact">
+            <button type="button" data-trigger="success">success</button>
+            <button type="button" data-trigger="fail">fail</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h2>Mock Response</h2>
+          <div class="button-grid compact">
+            <button id="mock-success" type="button">Success Flow</button>
+            <button id="mock-fail" type="button">Fail Flow</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h2>Loaded Inputs</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Raw</th>
+                  <th>Trimmed</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody id="input-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

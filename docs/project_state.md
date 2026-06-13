@@ -88,13 +88,13 @@ Browser Frontend
 - Vanilla JavaScript
 - `@rive-app/canvas`
 - HTML Canvas
-- ローカルRiveファイル: `public/vehicles.riv`
+- ローカルRiveファイル: `public/rive/wave-hear-and-talk.riv`
 
 主要ファイル:
 
 - `index.html`
   - `<canvas id="canvas" width="500" height="500"></canvas>` を配置
-  - 操作用の `ジャンプ` ボタンを配置
+  - State Machine確認用の操作UIを配置
 - `src/main.js`
   - Rive Runtimeの初期化
   - State Machine Inputの取得
@@ -195,7 +195,7 @@ sad: Trigger
 surprised: Trigger
 ```
 
-現在の実装では、`public/vehicles.riv` に対して以下を使用している。
+初期検証では、`public/vehicles.riv` に対して以下を使用していた。
 
 ```text
 Rive file: public/vehicles.riv
@@ -203,9 +203,44 @@ State Machine: bumpy
 Trigger: bump
 ```
 
+2026-06-13時点では、音声対話エージェントの状態確認により適したRiveファイルへ差し替えている。
+
+```text
+Rive file: public/rive/wave-hear-and-talk.riv
+State Machine: State Machine 1
+```
+
+確認済みInput:
+
+```text
+Talk     Boolean
+Hear     Boolean
+Check    Boolean
+Look     Number
+success  Trigger
+fail     Trigger
+```
+
+確認済みAnimation:
+
+```text
+hands_down          one-shot
+hands_hear_start    one-shot
+hands_hear_stop     one-shot
+hands_up            one-shot ※Animation名に末尾スペースあり
+fail                one-shot ※Animation名に末尾スペースあり
+wave                one-shot
+success             one-shot
+look_idle           one-shot
+Talk                loop
+Look_down_right     one-shot
+Look_down_left      one-shot
+idle                loop
+```
+
 注意:
 
-過去の検証・想定では、ステートマシン名 `bouncing` や、Input名 `truck`、`jeep `、`sportscar ` が話題に上がっていた。ただし、現在のリポジトリ内ドキュメントおよび実装確認時点では、実際に使用しているステートマシンは `bumpy`、Triggerは `bump` である。
+過去の検証・想定では、ステートマシン名 `bouncing` や、Input名 `truck`、`jeep `、`sportscar ` が話題に上がっていた。また初期検証用の `vehicles.riv` では `bumpy` / `bump` を使用していた。現在の実装では `public/rive/wave-hear-and-talk.riv` の `State Machine 1` を使用する。
 
 今後Riveファイルを差し替える場合は、ブラウザコンソールで `stateMachineNames` と `stateMachineInputs(...)` を確認し、仕様書と実装の名前を同期すること。
 
@@ -320,23 +355,28 @@ Vite + Vanilla JavaScript + @rive-app/canvas
 
 ### 実装済みの画面
 
-現在は、Rive表示確認用の最小画面である。
+現在は、Rive表示とState Machine Input確認用のデバッグ画面である。
 
 - 画面中央にCanvasを表示
 - Canvasサイズは `500 x 500`
-- Canvas下に `ジャンプ` ボタンを配置
-- ボタン押下でRive Triggerを発火
+- Agent Stateプリセットを操作可能
+- `Talk` / `Hear` / `Check` のBoolean Inputをトグル可能
+- `Look` のNumber Inputをスライダーとボタンで操作可能
+- `success` / `fail` Triggerを発火可能
+- Rive読み込み後のInput一覧を画面上に表示
 
 `index.html` の構成:
 
 ```html
 <main id="app">
-  <div class="rive-stage">
+  <section class="stage-panel" aria-label="Riveプレビュー">
     <canvas id="canvas" width="500" height="500"></canvas>
-    <div class="controls" aria-label="アニメーション操作">
-      <button id="btn-jump" type="button">ジャンプ</button>
-    </div>
-  </div>
+    <p id="status" class="status" aria-live="polite">Loading Rive...</p>
+  </section>
+
+  <section class="control-panel" aria-label="State Machine操作">
+    <!-- Agent States / Boolean Inputs / Look Number / Triggers / Loaded Inputs -->
+  </section>
 </main>
 ```
 
@@ -346,10 +386,10 @@ Vite + Vanilla JavaScript + @rive-app/canvas
 
 ```js
 const r = new Rive({
-  src: '/vehicles.riv',
+  src: '/rive/wave-hear-and-talk.riv',
   canvas: document.getElementById('canvas'),
   autoplay: true,
-  stateMachines: 'bumpy'
+  stateMachines: 'State Machine 1'
 })
 ```
 
@@ -357,16 +397,21 @@ const r = new Rive({
 
 - 外部URLのRiveファイルでは `HTTP 403` が発生する可能性がある
 - 外部ファイルは内容やState Machine名が変わる可能性がある
-- モックアップの再現性を高めるため、`public/vehicles.riv` を固定して使う
+- モックアップの再現性を高めるため、`public/rive/wave-hear-and-talk.riv` を固定して使う
 
 ### State Machine / Inputの確認
 
 現在確認済みの構成:
 
 ```text
-State Machine: bumpy
-Input: bump
-Input type: Trigger
+State Machine: State Machine 1
+Inputs:
+  Talk     Boolean
+  Hear     Boolean
+  Check    Boolean
+  Look     Number
+  success  Trigger
+  fail     Trigger
 ```
 
 起動後に以下をログ出力して、Riveファイルの中身を確認している。
@@ -375,7 +420,7 @@ Input type: Trigger
 - 使用中のステートマシン名
 - 取得されたInput一覧
 - trim後のInput名一覧
-- Trigger取得成功または失敗ログ
+- Input操作の成功または失敗ログ
 
 ### Input名の空白問題への対策
 
@@ -413,163 +458,118 @@ const findInput = (targetName) =>
 - デバッグログで `rawName` と `trimmedName` の両方を確認できる
 - Riveファイル差し替え時の調査が容易になる
 
-### Trigger発火処理
+### Input操作処理
 
-現在のTrigger発火処理:
+現在は、Rive Inputを名前で取得し、型ごとに操作する汎用ヘルパーを使用している。
 
 ```js
-const fireJump = () => {
-  bumpTrigger = findInput('bump')
+const setBoolean = (name, value) => {
+  const input = findInput(name)
+  input.value = Boolean(value)
+}
 
-  if (typeof bumpTrigger?.fire === 'function') {
-    console.log('[Rive] jump/bump トリガー発火成功')
-    bumpTrigger.fire()
-  } else {
-    logMissingBumpTrigger()
-  }
+const setNumber = (name, value) => {
+  const input = findInput(name)
+  input.value = Number(value)
+}
+
+const fireTrigger = (name) => {
+  const input = findInput(name)
+  input.fire()
 }
 ```
 
-`bump` Triggerが見つからない場合は、Input一覧をログ出力して原因調査しやすくしている。
+各ヘルパーでは、Inputが存在しない場合や型が一致しない場合にconsoleへ警告を出す。
 
 ### AI連携用グローバル関数
 
 将来の音声AI連携に備えて、現在は `window` に関数を公開している。
 
-#### `window.fireJumpFromAI()`
+#### `window.setAgentState(stateName)`
 
-現在の主API。
+AIエージェントの状態プリセットを切り替える。
 
-AI応答や音声イベントに合わせて、ジャンプアニメーションと仮の発話ログを発火する。
+対応State:
+
+- `idle`
+- `listening`
+- `thinking`
+- `talking`
+- `success`
+- `fail`
 
 ```js
-window.fireJumpFromAI = function () {
-  if (isAgentResponding) {
-    console.log('[AI Agent] エージェントが発話中のため、リクエストをガードしました。')
-    return
-  }
+window.setAgentState('listening')
+window.setAgentState('talking')
+```
 
-  console.log('[AI Agent] AIの発話演出と連動してジャンプします。')
-  isAgentResponding = true
+#### `window.handleAgentEvent(event)`
 
-  fireJump()
-  speakAgentDialogue()
+AI応答イベントを受け取り、Rive Inputへ反映する統一窓口。
 
-  setTimeout(() => {
-    isAgentResponding = false
-    console.log('[AI Agent] エージェントの発話演出が終了しました。')
-  }, 2000)
+```js
+window.handleAgentEvent({
+  state: 'talking',
+  action: 'success',
+  emotion: 'happy',
+  look: 1
+})
+```
+
+#### `window.riveDebug`
+
+デバッグ用にInput操作関数を公開している。
+
+```js
+window.riveDebug = {
+  inputs,
+  findInput,
+  setBoolean,
+  setNumber,
+  fireTrigger,
+  setAgentState,
+  handleAgentEvent
 }
 ```
 
-役割:
-
-- 外部イベントからRive演出を発火する入口
-- 二重発火を防ぐ簡易ガード
-- 将来のAI応答イベント連携の土台
-
-#### `window.fireVehicleTriggerFromAI()`
-
-過去の車種切り替え想定との互換用API。
-
-現在は内部で `fireJumpFromAI()` を呼ぶ。
-
-```js
-window.fireVehicleTriggerFromAI = function () {
-  window.fireJumpFromAI()
-}
-```
+旧APIの `window.fireJumpFromAI()` と `window.fireVehicleTriggerFromAI()` は互換用に残し、現在はSuccess Flowのモック応答を実行する。
 
 ### 現在の確認済み動作
 
 確認済み:
 
-- `public/vehicles.riv` をVite経由で読み込める
+- `public/rive/wave-hear-and-talk.riv` をVite経由で読み込める
 - Rive Canvasがブラウザ上に表示される
-- `bumpy` State Machineを起動できる
-- `bump` Triggerを取得できる
-- `ジャンプ` ボタン押下でアニメーションが発火する
-- `window.fireJumpFromAI()` からも同じ演出を発火できる
+- `State Machine 1` を起動できる
+- `Talk` / `Hear` / `Check` のBoolean Inputを操作できる
+- `Look` のNumber Inputを操作できる
+- `success` / `fail` Triggerを発火できる
+- `window.setAgentState()` と `window.handleAgentEvent()` から状態を操作できる
 - Input名比較では `.trim()` により末尾スペース混入に備えている
 
 ### 既知の注意点
 
-- 現在の `vehicles.riv` は車種切り替え用ではない
+- 現在の `vehicles.riv` は旧検証用ファイルであり、アプリ上では使用していない
 - `truck` / `jeep` / `sportscar` のTriggerは現行ファイルでは確認されていない
-- 車種切り替えを行うには、Riveファイル側に対応するInputを追加する必要がある
+- `Look` のNumber値の意味と最適な値域は実機で追加確認が必要
+- Animation名の `hands_up ` と `fail ` には末尾スペースが含まれる
 - 現在の発話処理はコンソールログのみで、実際のTTS音声再生は未実装
 - 実際のマイク入力、STT、LLM、TTS、WebSocket接続は未実装
-- 口パク制御用の `isTalking` InputはまだRiveファイル側・JS側ともに本実装されていない
+- 口パク制御は現行Riveの `Talk` Booleanを使う想定
 
 ## 5. 今後の開発ロードマップ
 
-### Step 1: AIイベント連携用の統一窓口を作る
+### Step 1: `Look` Numberの値域確認
 
-現在は `window.fireJumpFromAI()` のみが主な入口になっている。
+現在のUIでは、`Look` を `0` / `1` / `2` の範囲で操作できるようにしている。
 
-次の段階では、AI応答データを受け取り、感情・発話・アクションをまとめて処理する関数を用意する。
+ただし、Rive RuntimeからはNumber Inputの意味や推奨値域までは取得できないため、ブラウザ上で実際の見た目を確認し、以下を決める必要がある。
 
-案:
+- `0` / `1` / `2` がそれぞれ何を表すか
+- 値域を `0〜2` の離散値に固定するか
+- スライダーをより細かい値にする必要があるか
 
-```js
-window.handleAgentEvent = function (event) {
-  const { text, emotion, action, audioUrl } = event
-
-  setEmotion(emotion)
-  fireAction(action)
-  playVoice(audioUrl)
-}
-```
-
-入力例:
-
-```json
-{
-  "text": "それいいね。やってみよう。",
-  "emotion": "happy",
-  "action": "jump",
-  "audioUrl": "/mock/voice/happy-001.mp3"
-}
-```
-
-この関数を将来のWebSocket受信処理、テストボタン、デバッグコンソールから共通利用する。
-
-### Step 2: Rive Inputの抽象化
-
-現在は `bump` Triggerを直接探して発火している。
-
-今後は、Rive Inputを名前で取得・操作するヘルパーを整備する。
-
-例:
-
-```js
-const fireTrigger = (name) => {
-  const input = findInput(name)
-
-  if (typeof input?.fire === 'function') {
-    input.fire()
-  }
-}
-
-const setBoolean = (name, value) => {
-  const input = findInput(name)
-
-  if (input && 'value' in input) {
-    input.value = value
-  }
-}
-```
-
-これにより、以下のような制御をしやすくする。
-
-```js
-fireTrigger('happy')
-fireTrigger('backchannel')
-setBoolean('isTalking', true)
-setBoolean('isListening', false)
-```
-
-### Step 3: モック用AI応答データを追加する
+### Step 2: モック用AI応答データを追加する
 
 バックエンド未接続のまま、フロント側でAI応答の見え方を検証する。
 
@@ -580,13 +580,13 @@ const mockAgentEvents = [
   {
     text: 'こんにちは。今日は何をする？',
     emotion: 'neutral',
-    action: 'idle',
+    state: 'talking',
     audioUrl: '/mock-audio/hello.mp3'
   },
   {
     text: 'いいね、それ楽しそう。',
     emotion: 'happy',
-    action: 'jump',
+    action: 'success',
     audioUrl: '/mock-audio/happy.mp3'
   }
 ]
@@ -599,7 +599,7 @@ const mockAgentEvents = [
 - 連続イベント時のガード処理
 - 相槌と本応答の競合制御
 
-### Step 4: 簡易口パクの実装
+### Step 3: 簡易口パクの実装
 
 TTS音声再生と連動して、Riveの口パクInputを制御する。
 
@@ -607,17 +607,17 @@ TTS音声再生と連動して、Riveの口パクInputを制御する。
 
 ```js
 audio.addEventListener('play', () => {
-  setBoolean('isTalking', true)
+  window.handleAgentEvent({ isTalking: true })
 })
 
 audio.addEventListener('ended', () => {
-  setBoolean('isTalking', false)
+  window.handleAgentEvent({ isTalking: false })
 })
 ```
 
 次に、必要であれば音量しきい値方式へ拡張する。
 
-### Step 5: ローカル相槌の実装
+### Step 4: ローカル相槌の実装
 
 ユーザー発話終了直後またはサーバー送信直後に、短い相槌をローカルで返す。
 
@@ -625,7 +625,7 @@ audio.addEventListener('ended', () => {
 
 ```js
 function playLocalBackchannel() {
-  fireTrigger('backchannel')
+  window.handleAgentEvent({ state: 'listening' })
   playLocalAudio('/audio/backchannel/un.mp3')
 }
 ```
@@ -636,7 +636,7 @@ function playLocalBackchannel() {
 - サーバーから本応答が返ってきたら相槌を停止またはフェードアウト
 - 同時に複数の相槌が鳴らないようにする
 
-### Step 6: WebSocket接続の追加
+### Step 5: WebSocket接続の追加
 
 バックエンドと接続し、AI応答イベントをストリーミングで受け取る。
 
@@ -646,7 +646,8 @@ function playLocalBackchannel() {
 {
   "type": "agent_response_start",
   "emotion": "happy",
-  "action": "jump"
+  "state": "talking",
+  "action": "success"
 }
 ```
 
@@ -665,7 +666,7 @@ function playLocalBackchannel() {
 
 フロント側では、イベント種別ごとにRiveと音声再生を同期する。
 
-### Step 7: 実機検証
+### Step 6: 実機検証
 
 ターゲット端末で実機検証を行う。
 
@@ -679,9 +680,9 @@ function playLocalBackchannel() {
 - WebSocket再接続時の復帰
 - 低速回線での体感遅延
 
-### Step 8: 本番用キャラクターRiveへの差し替え
+### Step 7: 本番用キャラクターRiveへの差し替え
 
-現在の `vehicles.riv` は検証用ファイルである。
+現在の `wave-hear-and-talk.riv` は検証用ファイルである。
 
 本番キャラクター用Riveでは、以下をRive側に用意する。
 
@@ -722,4 +723,4 @@ Rive制作時の注意:
 
 現在は、Rive表示とTrigger発火の最小土台が完成している。
 
-次の開発フェーズでは、`window.fireJumpFromAI()` を発展させ、AI応答データを受け取る統一窓口を実装する。その上で、感情コード、音声再生、口パク、相槌モーションを段階的に接続していく。
+現在の開発フェーズでは、AI応答データを受け取る統一窓口として `window.handleAgentEvent()` と `window.setAgentState()` を用意済みである。次のフェーズでは、実際のTTS音声再生、簡易口パク、ローカル相槌、WebSocketイベントを段階的に接続していく。
