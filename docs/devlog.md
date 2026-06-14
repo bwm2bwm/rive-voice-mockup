@@ -1,5 +1,39 @@
 # 開発ログ
 
+## 2026-06-14
+
+### 実施内容
+
+- スマホ画面で、操作ボタンを下方向にスクロールするとRiveキャラクターが画面上部に隠れてしまう問題を修正した。
+- `index.html` の操作UI部分に `.control-scroll` ラッパーを追加した。
+  - `.control-panel` は操作領域の外枠として扱う。
+  - `.control-scroll` を実際の縦スクロール対象として扱う。
+- `src/style.css` のスマホ向けレイアウトを調整した。
+  - `840px` 以下では `#app` を `position: fixed` にして、アプリ全体をビューポートへ固定した。
+  - スマホ時のみ `#app` を縦Flexレイアウトに切り替えた。
+  - `.stage-panel` を上部固定領域として扱い、Canvasをスマホ向けに縮小した。
+  - `.control-panel` は残り高さを受け取る外枠にした。
+  - `.control-scroll` に `overflow-y: scroll`、`-webkit-overflow-scrolling: touch`、`touch-action: pan-y` を指定した。
+  - iPhoneのセーフエリアを考慮し、スマホ時の上下paddingに `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` を使った。
+- `docs/project_state.md` に、スマホ向けUIレイアウト方針とiOS Safari確認結果を追記した。
+
+### 調査で分かったこと
+
+- PC横長画面では、従来の2カラムレイアウトで問題なかった。
+- 初期のスマホ対応では、`.control-panel` 全体をスクロール対象にしたが、下部のボタン類が表示範囲外になった。
+- 次に、`.control-scroll` を追加し、Gridの2段目内で `height: 100%` の内側スクロールにしたが、iPhone 12 / Safariではスクロール領域が期待通りに成立しなかった。
+- iOS Safariでは、Gridの残り高さと内側要素の `height: 100%` の組み合わせが不安定になるケースがある。
+- スマホ時のみ `position: fixed` + 縦Flexに切り替えることで、残り高さを `.control-panel` / `.control-scroll` に安定して渡せた。
+
+### 現在の動作確認
+
+- `npm run build` は成功。
+- ローカル開発サーバー `http://127.0.0.1:5173/` で変更が反映されることを確認した。
+- Vercel更新後、iPhone 12 / Safariで以下を確認済み。
+  - Riveキャラクターが画面上部に表示され続ける。
+  - 操作ボタン類のみ縦スクロールできる。
+  - 画面全体が不要にスクロールしない。
+
 ## 2026-06-13
 
 ### 実施内容

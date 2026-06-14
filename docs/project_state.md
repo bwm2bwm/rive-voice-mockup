@@ -95,14 +95,16 @@ Browser Frontend
 - `index.html`
   - `<canvas id="canvas" width="500" height="500"></canvas>` を配置
   - State Machine確認用の操作UIを配置
+  - スマホ向けに、操作UI部分を `.control-scroll` でラップ
 - `src/main.js`
   - Rive Runtimeの初期化
   - State Machine Inputの取得
   - Trigger発火
   - AI連携用グローバル関数の公開
 - `src/style.css`
-  - 画面中央にCanvasとボタンを配置
-  - 最小限のモックアップUIスタイルを定義
+  - PCではCanvasと操作UIを横並びに配置
+  - スマホではキャラクター領域を画面上部に固定し、操作UI部分のみを縦スクロール
+  - iOS Safari向けに、スマホ時は `#app` を `position: fixed` + 縦Flexで構成
 
 ### バックエンド想定
 
@@ -359,6 +361,8 @@ Vite + Vanilla JavaScript + @rive-app/canvas
 
 - 画面中央にCanvasを表示
 - Canvasサイズは `500 x 500`
+- PC横長画面ではCanvasと操作UIを横並び表示
+- スマホ画面ではCanvasを上部に固定し、操作UIだけをスクロール可能にする
 - Agent Stateプリセットを操作可能
 - `Talk` / `Hear` / `Check` のBoolean Inputをトグル可能
 - `Look` のNumber Inputをスライダーとボタンで操作可能
@@ -375,10 +379,30 @@ Vite + Vanilla JavaScript + @rive-app/canvas
   </section>
 
   <section class="control-panel" aria-label="State Machine操作">
-    <!-- Agent States / Boolean Inputs / Look Number / Triggers / Loaded Inputs -->
+    <div class="control-scroll">
+      <!-- Agent States / Boolean Inputs / Look Number / Triggers / Loaded Inputs -->
+    </div>
   </section>
 </main>
 ```
+
+### スマホ向けUIレイアウト
+
+スマホでは、操作ボタンを下方向にスクロールしてもキャラクターが画面外へ流れないようにしている。
+
+実装方針:
+
+- `840px` 以下では `#app` を `position: fixed` にし、ビューポート全体をアプリ領域として固定する
+- `#app` は縦方向のFlexレイアウトに切り替える
+- `.stage-panel` は上部の固定領域として扱う
+- `.control-panel` は残り高さを受け取る外枠にする
+- `.control-scroll` だけに `overflow-y: scroll` を指定し、ボタン類とInput一覧をスクロール対象にする
+- iOS Safari対策として `-webkit-overflow-scrolling: touch` と `touch-action: pan-y` を指定する
+- セーフエリアを考慮し、上下paddingに `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` を使う
+
+過去の中間案では、スマホ時にGridの2段目へ `.control-panel` を置き、その内側の `.control-scroll` を `height: 100%` でスクロールさせようとした。しかしiPhone 12 / Safariでは内側スクロール領域が期待通りに実高さを掴めず、ボタン類が表示範囲外でクリップされ、ページ全体のスクロールもできない状態になった。
+
+最終的には、スマホ時のみGridを使わず `position: fixed` + Flexに切り替えることで、iPhone 12 / Safariでも操作UI部分のみスクロールできることを確認済み。
 
 ### Rive読み込み
 
@@ -546,6 +570,7 @@ window.riveDebug = {
 - `success` / `fail` Triggerを発火できる
 - `window.setAgentState()` と `window.handleAgentEvent()` から状態を操作できる
 - Input名比較では `.trim()` により末尾スペース混入に備えている
+- iPhone 12 / Safariで、キャラクターを画面上部に表示したまま操作UI部分のみスクロールできる
 
 ### 既知の注意点
 
